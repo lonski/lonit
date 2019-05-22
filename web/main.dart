@@ -7,7 +7,7 @@ import 'grid.dart';
 import 'player.dart';
 import 'tile.dart';
 
-double aliveChance = 0.30;
+double aliveChance = 0.36;
 int iterations = 5;
 int birthTreshold = 5;
 int survivalTreshold = 4;
@@ -20,7 +20,7 @@ class Game {
   static final int COLS = 180;
   static final int ROWS = 120;
   static final int TILE_SIZE = 4;
-  static const int BALL_COUNT = 10;
+  static const int BALL_COUNT = 6;
   num _lastTimeStamp = 0;
 
   CanvasRenderingContext2D _ctx;
@@ -30,19 +30,16 @@ class Game {
   Player _player;
   List<Ball> _balls;
   State _state = State.NEW_GAME;
-  int _level = 16;
-  int _difficulty;
-  int _gameSpeed;
+  int _level = 1;
+  int _gameSpeed = 40;
   Wait _gameOverScreenWait = Wait(1000);
 
   Game() {
     querySelector("#wrapper").style.width = "${TILE_SIZE * COLS}px";
-    _level = int.parse((querySelector("#ctlLevel") as InputElement).value);
     _canvas = querySelector('#canvas');
     _ctx = _canvas.getContext("2d");
     _canvas.width = TILE_SIZE * COLS;
     _canvas.height = TILE_SIZE * ROWS;
-    querySelector("#ctlReset").onClick.listen((e) => _handleNextLevel());
   }
 
   void start() {
@@ -82,6 +79,7 @@ class Game {
 
         if (_balls.isEmpty) {
           _handleNextLevel();
+          _player.dir = null;
         } else if (_isWallCollision()) {
           _handleGameOver();
         } else {
@@ -102,14 +100,7 @@ class Game {
   void _handleNextLevel() {
     _state = State.NEXT_LEVEL;
     _clear();
-
-    int levelFromControl = int.parse((querySelector("#ctlLevel") as InputElement).value);
-    if (levelFromControl != _level) {
-      _level = min(16, levelFromControl);
-    } else {
-      _level = min(16, _level + 1);
-      (querySelector("#ctlLevel") as InputElement).value = _level.toString();
-    }
+    _level = min(10, _level + 1);
     _drawText("LEVEL $_level", 'blue');
   }
 
@@ -150,19 +141,10 @@ class Game {
   }
 
   void _newLevel() {
-    _readDifficulty();
     _cave =
         CaveGenerator(COLS, ROWS).generate(aliveChance + (_level / 100), iterations, birthTreshold, survivalTreshold);
     _player = Player(_cave.findFreeSpot(8) * TILE_SIZE, TILE_SIZE);
     _balls = List.generate(BALL_COUNT, (i) => Ball(_cave.findFreeSpot(8) * TILE_SIZE, TILE_SIZE));
-  }
-
-  void _readDifficulty() {
-    _difficulty = 1;
-    if ((querySelector("#ctlMedium") as RadioButtonInputElement).checked) _difficulty = 2;
-    if ((querySelector("#ctlHard") as RadioButtonInputElement).checked) _difficulty = 3;
-    print("Difficulty: $_difficulty");
-    _gameSpeed = 50 ~/ _difficulty;
   }
 
   void _clear() {
