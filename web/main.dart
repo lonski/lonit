@@ -29,10 +29,11 @@ class Game {
   Grid _cave;
   Player _player;
   List<Ball> _balls;
-  State _state = State.NEW_GAME;
+  State _state = State.NEXT_LEVEL;
   int _level = 1;
   int _gameSpeed = 40;
   Wait _gameOverScreenWait = Wait(1000);
+  Wait _nextLevelScreenWait = Wait(100);
 
   Game() {
     querySelector("#wrapper").style.width = "${TILE_SIZE * COLS}px";
@@ -49,59 +50,72 @@ class Game {
   }
 
   void run() async {
-    update(await window.animationFrame);
+    gameLoop(await window.animationFrame);
   }
 
-  void update(num delta) {
+  void gameLoop(num delta) {
     final num diff = delta - _lastTimeStamp;
 
     if (diff > _gameSpeed) {
       _lastTimeStamp = delta;
-
-      if (_state == State.NEXT_LEVEL) {
-        _newLevel();
-        _state = State.RUNNING;
-      }
-
-      if (_state == State.GAME_OVER) {
-        _gameOverScreenWait.update(diff);
-        if (_gameOverScreenWait.isDone()) {
-          _gameOverScreenWait.reset();
-          _level -= 1;
-          _handleNextLevel();
-        }
-      }
-
-      if (_state == State.RUNNING) {
-        _player.handleInput(_keyboard);
-        _player.update();
-        _handleBallCollision();
-
-        if (_balls.isEmpty) {
-          _handleNextLevel();
-          _player.dir = null;
-        } else if (_isWallCollision()) {
-          _handleGameOver();
-        } else {
-          _render();
-        }
-      }
+      _draw();
+      _update(diff);
     }
 
     run();
   }
 
+  void _draw() {
+    _clear();
+    if (_state == State.GAME_OVER) {
+      _drawText("GAME OVER", 'red');
+    } else if (_state == State.NEXT_LEVEL) {
+      _drawText("LEVEL $_level", 'blue');
+    } else if (_state == State.RUNNING) {
+      _renderCave();
+    }
+  }
+
+  void _update(num diff) {
+    if (_state == State.NEXT_LEVEL) {
+      _nextLevelScreenWait.update(diff);
+      if (_nextLevelScreenWait.isDone()) {
+        _nextLevelScreenWait.reset();
+        _newLevel();
+        _state = State.RUNNING;
+      }
+    }
+
+    if (_state == State.GAME_OVER) {
+      _gameOverScreenWait.update(diff);
+      if (_gameOverScreenWait.isDone()) {
+        _gameOverScreenWait.reset();
+        _level -= 1;
+        _handleNextLevel();
+      }
+    }
+
+    if (_state == State.RUNNING) {
+      _player.handleInput(_keyboard);
+      _player.update();
+      _handleBallCollision();
+
+      if (_balls.isEmpty) {
+        _handleNextLevel();
+        _player.dir = null;
+      } else if (_isWallCollision()) {
+        _handleGameOver();
+      }
+    }
+  }
+
   void _handleGameOver() {
     _state = State.GAME_OVER;
-    _clear();
-    _drawText("GAME OVER", 'red');
   }
 
   void _handleNextLevel() {
     _state = State.NEXT_LEVEL;
-    _clear();
     _level = min(10, _level + 1);
-    _drawText("LEVEL $_level", 'blue');
   }
 
   void _drawText(String text, String color) {
@@ -112,7 +126,7 @@ class Game {
       ..fillText(text, _canvas.width / 2, _canvas.height / 2);
   }
 
-  void _render() {
+  void _renderCave() {
     _clear();
     _cave.points.forEach((p) => _cave.at(p).draw(p * TILE_SIZE, TILE_SIZE, _ctx));
     _player.draw(_ctx);
@@ -157,7 +171,7 @@ class Game {
   }
 }
 
-enum State { NEW_GAME, RUNNING, GAME_OVER, NEXT_LEVEL }
+enum State { RUNNING, GAME_OVER, NEXT_LEVEL }
 
 class Wait {
   int _time;
