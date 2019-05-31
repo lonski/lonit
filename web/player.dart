@@ -16,7 +16,7 @@ class Player {
   Tile tile;
   List<Point> points;
   Point dir;
-  double velocity = 4;
+  double velocity = 3;
 
   Player(this.pos, this.tileSize) {
     tile = Tile.withColor('red');

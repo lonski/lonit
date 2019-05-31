@@ -21,7 +21,11 @@ class Game {
   static final int ROWS = 120;
   static final int TILE_SIZE = 4;
   static const int BALL_COUNT = 6;
-  num _lastTimeStamp = 0;
+  num gameTime = 0;
+  num minFrameTime = 20; //50fps
+  num maxFrameTime = 200;
+  num _lastAnimateTime = 0;
+  num _lastdt = 0;
 
   CanvasRenderingContext2D _ctx;
   CanvasElement _canvas;
@@ -31,7 +35,6 @@ class Game {
   List<Ball> _balls;
   State _state = State.NEXT_LEVEL;
   int _level = 1;
-  int _gameSpeed = 40;
   Wait _gameOverScreenWait = Wait(1000);
   Wait _nextLevelScreenWait = Wait(100);
 
@@ -50,19 +53,30 @@ class Game {
   }
 
   void run() async {
-    gameLoop(await window.animationFrame);
+    window.requestAnimationFrame(_getAnimateTime);
   }
 
-  void gameLoop(num delta) {
-    final num diff = delta - _lastTimeStamp;
+  num get currentFrameRate => (_lastdt == 0) ? -1 : 1000 / _lastdt;
 
-    if (diff > _gameSpeed) {
-      _lastTimeStamp = delta;
-      _draw();
-      _update(diff);
-    }
+  void _getAnimateTime(num animateCallTime) {
+    _lastAnimateTime = animateCallTime; // now we have start time with right resolution
+    window.requestAnimationFrame(_gameLoop); // start animating
+  }
 
-    run();
+  void _gameLoop(num animateCallTime) {
+    window.requestAnimationFrame(_gameLoop);
+
+    num dt = animateCallTime - _lastAnimateTime;
+
+    if (dt < minFrameTime) return; // frame rate too high, drop this frame.
+    if (dt > maxFrameTime) dt = minFrameTime; // consider just one frame elapsed if game tabbed out.
+
+    gameTime += dt;
+    _lastdt = dt;
+    _lastAnimateTime = animateCallTime;
+
+    _draw();
+    _update();
   }
 
   void _draw() {
@@ -76,9 +90,11 @@ class Game {
     }
   }
 
-  void _update(num diff) {
+  void _update() {
+    _player.dir = null;
+
     if (_state == State.NEXT_LEVEL) {
-      _nextLevelScreenWait.update(diff);
+      _nextLevelScreenWait.update(_lastdt);
       if (_nextLevelScreenWait.isDone()) {
         _nextLevelScreenWait.reset();
         _newLevel();
@@ -87,7 +103,7 @@ class Game {
     }
 
     if (_state == State.GAME_OVER) {
-      _gameOverScreenWait.update(diff);
+      _gameOverScreenWait.update(_lastdt);
       if (_gameOverScreenWait.isDone()) {
         _gameOverScreenWait.reset();
         _level -= 1;
@@ -102,7 +118,6 @@ class Game {
 
       if (_balls.isEmpty) {
         _handleNextLevel();
-        _player.dir = null;
       } else if (_isWallCollision()) {
         _handleGameOver();
       }
