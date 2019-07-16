@@ -91,8 +91,6 @@ class Game {
   }
 
   void _update() {
-    _player.dir = null;
-
     if (_state == State.NEXT_LEVEL) {
       _nextLevelScreenWait.update(_lastdt);
       if (_nextLevelScreenWait.isDone()) {
